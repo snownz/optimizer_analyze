@@ -32,7 +32,7 @@ class KMNISTModel(Module):
 
         return x
     
-    def forward_backward(self, inputs, labels, weight_decay = 0.01, grad_clip = 1.0):
+    def forward_backward(self, inputs, labels):
         
         # Zero the gradients
         self.optimizer.zero_grad()
@@ -42,16 +42,9 @@ class KMNISTModel(Module):
         
         # Calculate loss
         loss = self.criterion( outputs, labels )
-        
-        # Add weight decay
-        if weight_decay > 0:
-            loss += weight_decay * sum( p.pow( 2 ).sum() for p in self.parameters() if p.requires_grad )
-        
+                
         # Backward pass
         loss.backward()
         
-        # Clip gradients
-        # if grad_clip > 0:
-        #    torch.nn.utils.clip_grad_norm_( self.parameters(), grad_clip )
         
         return loss.item()

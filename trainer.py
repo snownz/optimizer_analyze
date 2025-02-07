@@ -145,10 +145,7 @@ class KMNISTTrainer:
                 weight_decay = self.cfg.get_optimizer_config().weight_decay
                 grad_clip = self.cfg.get_optimizer_config().grad_clip
 
-            base_optimizer = optim.SGD(
-                params, lr = lr, momentum = momentum, weight_decay = weight_decay
-            )
-            self.optimizer = SAM(params, base_optimizer, rho = rho, adaptive = False)
+            self.optimizer = SAM( params, optim.SGD, rho = rho, lr = lr, momentum = momentum, weight_decay = weight_decay )
             self.grad_clip = grad_clip
 
         else:
@@ -337,19 +334,7 @@ class KMNISTTrainer:
             self.model.train()
             train_loss = 0.0
             start_time = time.time()
-            
-            # Determine weight decay for this optimizer
-            if opt_type == 'adam':
-                weight_decay = self.cfg.get_optimizer_config().weight_decay
-            elif opt_type == 'adamw':
-                weight_decay = self.cfg.get_optimizer_config().weight_decay
-            elif opt_type == 'rmsprop':
-                weight_decay = self.cfg.get_optimizer_config().weight_decay
-            elif opt_type == 'sam':
-                weight_decay = self.cfg.get_optimizer_config().weight_decay
-            else:
-                weight_decay = self.cfg.get_optimizer_config().weight_decay
-            
+                                    
             grad_clip = self.cfg.get_optimizer_config().grad_clip
 
             batch_bar = tqdm( train_loader, desc = 'Batches', leave = False )
@@ -359,18 +344,18 @@ class KMNISTTrainer:
                 
                 if opt_type == 'sam':
                     # SAM: two-step update
-                    loss_val = self.model.forward_backward( data, target, weight_decay = weight_decay, grad_clip = grad_clip )
+                    loss_val = self.model.forward_backward( data, target )
                     self.optimizer.first_step( zero_grad = True )
                     
                     # second step
-                    _ = self.model.forward_backward( data, target, weight_decay = weight_decay, grad_clip = grad_clip )
+                    _ = self.model.forward_backward( data, target )
                     self.optimizer.second_step( zero_grad = True )
                     train_loss += loss_val
 
                 else:
                     
                     # Normal single-step
-                    loss_val = self.model.forward_backward( data, target, weight_decay = weight_decay, grad_clip = grad_clip )
+                    loss_val = self.model.forward_backward( data, target )
                     self.optimizer.step()
                     train_loss += loss_val
 
