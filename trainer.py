@@ -197,6 +197,24 @@ class KMNISTTrainer:
             self.cfg.get_optimizer_config().beta2 = best_params['adamw_beta2']
             self.cfg.get_optimizer_config().weight_decay = best_params['adamw_weight_decay']
 
+        elif opt_type == 'novograd':
+            self.cfg.get_optimizer_config().learning_rate = best_params['novograd_lr']
+            self.cfg.get_optimizer_config().beta1 = best_params['novograd_beta1']
+            self.cfg.get_optimizer_config().beta2 = best_params['novograd_beta2']
+            self.cfg.get_optimizer_config().weight_decay = best_params['novograd_weight_decay']
+
+        elif opt_type == 'lamb':
+            self.cfg.get_optimizer_config().learning_rate = best_params['lamb_lr']
+            self.cfg.get_optimizer_config().beta1 = best_params['lamb_beta1']
+            self.cfg.get_optimizer_config().beta2 = best_params['lamb_beta2']
+            self.cfg.get_optimizer_config().weight_decay = best_params['lamb_weight_decay']
+
+        elif opt_type == 'adopt':
+            self.cfg.get_optimizer_config().learning_rate = best_params['adopt_lr']
+            self.cfg.get_optimizer_config().beta1 = best_params['adopt_beta1']
+            self.cfg.get_optimizer_config().beta2 = best_params['adopt_beta2']
+            self.cfg.get_optimizer_config().weight_decay = best_params['adopt_weight_decay']
+
         elif opt_type == 'rmsprop':
             self.cfg.get_optimizer_config().learning_rate = best_params['rmsprop_lr']
             self.cfg.get_optimizer_config().alpha = best_params['rmsprop_alpha']
@@ -208,8 +226,8 @@ class KMNISTTrainer:
             self.cfg.get_optimizer_config().momentum = best_params['sam_momentum']
             self.cfg.get_optimizer_config().rho = best_params['sam_rho']
             self.cfg.get_optimizer_config().weight_decay = best_params['sam_weight_decay']
+            
         else:
-            # For NovoGrad, LAMB, Adopt, etc., similarly parse best_params if you set them up
             pass
 
         # Reset model and optimizer with the best parameters

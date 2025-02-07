@@ -179,4 +179,3 @@ class Config:
 
     def get_optimizer_config(self):
         return self.optimizers[self.optimizer]
-

@@ -148,4 +148,4 @@ def main():
 if __name__ == '__main__':
     main()
 
-
+# optimizers = [ "adam", "adamw", "rmsprop", "sam", "lamb", "novograd", "adopt" ]
