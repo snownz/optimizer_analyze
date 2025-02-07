@@ -32,6 +32,7 @@ class KMNISTTrainer:
         opt_type = self.cfg.optimizer.lower()
         
         if opt_type == 'rmsprop':
+            
             if trial:
                 lr = trial.suggest_float('rmsprop_lr',
                                          self.cfg.get_optimizer_config().ranges['lr_range'][0],
@@ -47,11 +48,16 @@ class KMNISTTrainer:
                                                    self.cfg.get_optimizer_config().ranges['weight_decay_range'][0],
                                                    self.cfg.get_optimizer_config().ranges['weight_decay_range'][1],
                                                    log=True)
+                grad_clip = trial.suggest_float('rmsprop_grad_clip',
+                                                self.cfg.get_optimizer_config().ranges['grad_clip_range'][0],
+                                                self.cfg.get_optimizer_config().ranges['grad_clip_range'][1],
+                                                log=True)
             else:
                 lr = self.cfg.get_optimizer_config().learning_rate
                 alpha = self.cfg.get_optimizer_config().alpha
                 momentum = self.cfg.get_optimizer_config().momentum
                 weight_decay = self.cfg.get_optimizer_config().weight_decay
+                grad_clip = self.cfg.get_optimizer_config().grad_clip
 
             self.optimizer = optim.RMSprop(
                 params,
@@ -61,7 +67,7 @@ class KMNISTTrainer:
                 weight_decay=weight_decay,
                 momentum=momentum
             )
-
+            self.grad_clip = grad_clip
         elif opt_type in ['novograd', 'lamb', 'adopt', 'adam','adamw']:
             
             if trial:
@@ -84,37 +90,36 @@ class KMNISTTrainer:
                                                    self.cfg.get_optimizer_config().ranges['weight_decay_range'][1],
                                                    log=True)
                 
-                if opt_type == 'novograd':
-                    self.optimizer = NovoGrad( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
-                elif opt_type == 'lamb':
-                    self.optimizer = Lamb( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
-                elif opt_type == 'adopt':
-                    self.optimizer = ADOPT( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
-                elif opt_type == 'adam':
-                    self.optimizer = optim.Adam( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
-                elif opt_type == 'adamw':
-                    self.optimizer = optim.AdamW( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
+                grad_clip = trial.suggest_float(f'{opt_type}_grad_clip',
+                                                self.cfg.get_optimizer_config().ranges['grad_clip_range'][0],
+                                                self.cfg.get_optimizer_config().ranges['grad_clip_range'][1],
+                                                log=True)
+
             else:
                 
                 lr = self.cfg.get_optimizer_config().learning_rate
                 beta1, beta2 = self.cfg.get_optimizer_config().beta1, self.cfg.get_optimizer_config().beta2
                 weight_decay = self.cfg.get_optimizer_config().weight_decay
-
-                if opt_type == 'novograd':
-                    self.optimizer = NovoGrad( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
-                elif opt_type == 'lamb':
-                    self.optimizer = Lamb( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
-                elif opt_type == 'adopt':
-                    self.optimizer = ADOPT( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
-                elif opt_type == 'adam':
-                    self.optimizer = optim.Adam( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
-                elif opt_type == 'adamw':
-                    self.optimizer = optim.AdamW( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
+                grad_clip = self.cfg.get_optimizer_config().grad_clip
+            
+            if opt_type == 'novograd':
+                self.optimizer = NovoGrad( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
+            elif opt_type == 'lamb':
+                self.optimizer = Lamb( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
+            elif opt_type == 'adopt':
+                self.optimizer = ADOPT( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
+            elif opt_type == 'adam':
+                self.optimizer = optim.Adam( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
+            elif opt_type == 'adamw':
+                self.optimizer = optim.AdamW( params, lr = lr, betas = ( beta1, beta2 ), weight_decay = weight_decay )
+            
+            self.grad_clip = grad_clip
 
         elif opt_type == 'sam':
 
             # SAM with base SGD
             if trial:
+
                 lr = trial.suggest_float('sam_lr',
                                          self.cfg.get_optimizer_config().ranges['lr_range'][0],
                                          self.cfg.get_optimizer_config().ranges['lr_range'][1],
@@ -129,16 +134,22 @@ class KMNISTTrainer:
                                                    self.cfg.get_optimizer_config().ranges['weight_decay_range'][0],
                                                    self.cfg.get_optimizer_config().ranges['weight_decay_range'][1],
                                                    log=True)
+                grad_clip = trial.suggest_float('sam_grad_clip',
+                                                self.cfg.get_optimizer_config().ranges['grad_clip_range'][0],
+                                                self.cfg.get_optimizer_config().ranges['grad_clip_range'][1],
+                                                log=True)
             else:
                 lr = self.cfg.get_optimizer_config().learning_rate
                 momentum = self.cfg.get_optimizer_config().momentum
                 rho = self.cfg.get_optimizer_config().rho
                 weight_decay = self.cfg.get_optimizer_config().weight_decay
+                grad_clip = self.cfg.get_optimizer_config().grad_clip
 
             base_optimizer = optim.SGD(
-                params, lr=lr, momentum=momentum, weight_decay=weight_decay
+                params, lr = lr, momentum = momentum, weight_decay = weight_decay
             )
-            self.optimizer = SAM(params, base_optimizer, rho=rho, adaptive=False)
+            self.optimizer = SAM(params, base_optimizer, rho = rho, adaptive = False)
+            self.grad_clip = grad_clip
 
         else:
             raise ValueError(f"Optimizer '{self.cfg.optimizer}' not supported or not implemented.")
@@ -185,47 +196,55 @@ class KMNISTTrainer:
         
         # Update the config with best parameters
         opt_type = self.cfg.optimizer.lower()
+        
         if opt_type == 'adam':
             self.cfg.get_optimizer_config().learning_rate = best_params['adam_lr']
             self.cfg.get_optimizer_config().beta1 = best_params['adam_beta1']
             self.cfg.get_optimizer_config().beta2 = best_params['adam_beta2']
             self.cfg.get_optimizer_config().weight_decay = best_params['adam_weight_decay']
+            self.cfg.get_optimizer_config().grad_clip = best_params['adam_grad_clip']
 
         elif opt_type == 'adamw':
             self.cfg.get_optimizer_config().learning_rate = best_params['adamw_lr']
             self.cfg.get_optimizer_config().beta1 = best_params['adamw_beta1']
             self.cfg.get_optimizer_config().beta2 = best_params['adamw_beta2']
             self.cfg.get_optimizer_config().weight_decay = best_params['adamw_weight_decay']
+            self.cfg.get_optimizer_config().grad_clip = best_params['adamw_grad_clip']
 
         elif opt_type == 'novograd':
             self.cfg.get_optimizer_config().learning_rate = best_params['novograd_lr']
             self.cfg.get_optimizer_config().beta1 = best_params['novograd_beta1']
             self.cfg.get_optimizer_config().beta2 = best_params['novograd_beta2']
             self.cfg.get_optimizer_config().weight_decay = best_params['novograd_weight_decay']
+            self.cfg.get_optimizer_config().grad_clip = best_params['novograd_grad_clip']
 
         elif opt_type == 'lamb':
             self.cfg.get_optimizer_config().learning_rate = best_params['lamb_lr']
             self.cfg.get_optimizer_config().beta1 = best_params['lamb_beta1']
             self.cfg.get_optimizer_config().beta2 = best_params['lamb_beta2']
             self.cfg.get_optimizer_config().weight_decay = best_params['lamb_weight_decay']
+            self.cfg.get_optimizer_config().grad_clip = best_params['lamb_grad_clip']
 
         elif opt_type == 'adopt':
             self.cfg.get_optimizer_config().learning_rate = best_params['adopt_lr']
             self.cfg.get_optimizer_config().beta1 = best_params['adopt_beta1']
             self.cfg.get_optimizer_config().beta2 = best_params['adopt_beta2']
             self.cfg.get_optimizer_config().weight_decay = best_params['adopt_weight_decay']
+            self.cfg.get_optimizer_config().grad_clip = best_params['adopt_grad_clip']
 
         elif opt_type == 'rmsprop':
             self.cfg.get_optimizer_config().learning_rate = best_params['rmsprop_lr']
             self.cfg.get_optimizer_config().alpha = best_params['rmsprop_alpha']
             self.cfg.get_optimizer_config().momentum = best_params['rmsprop_momentum']
             self.cfg.get_optimizer_config().weight_decay = best_params['rmsprop_weight_decay']
+            self.cfg.get_optimizer_config().grad_clip = best_params['rmsprop_grad_clip']
 
         elif opt_type == 'sam':
             self.cfg.get_optimizer_config().learning_rate = best_params['sam_lr']
             self.cfg.get_optimizer_config().momentum = best_params['sam_momentum']
             self.cfg.get_optimizer_config().rho = best_params['sam_rho']
             self.cfg.get_optimizer_config().weight_decay = best_params['sam_weight_decay']
+            self.cfg.get_optimizer_config().grad_clip = best_params['sam_grad_clip']
             
         else:
             pass
@@ -331,6 +350,8 @@ class KMNISTTrainer:
             else:
                 weight_decay = self.cfg.get_optimizer_config().weight_decay
             
+            grad_clip = self.cfg.get_optimizer_config().grad_clip
+
             batch_bar = tqdm( train_loader, desc = 'Batches', leave = False )
             for data, target in batch_bar:
 
@@ -338,18 +359,18 @@ class KMNISTTrainer:
                 
                 if opt_type == 'sam':
                     # SAM: two-step update
-                    loss_val = self.model.forward_backward( data, target, weight_decay = weight_decay )
+                    loss_val = self.model.forward_backward( data, target, weight_decay = weight_decay, grad_clip = grad_clip )
                     self.optimizer.first_step( zero_grad = True )
                     
                     # second step
-                    _ = self.model.forward_backward( data, target, weight_decay = weight_decay )
+                    _ = self.model.forward_backward( data, target, weight_decay = weight_decay, grad_clip = grad_clip )
                     self.optimizer.second_step( zero_grad = True )
                     train_loss += loss_val
 
                 else:
                     
                     # Normal single-step
-                    loss_val = self.model.forward_backward( data, target, weight_decay = weight_decay )
+                    loss_val = self.model.forward_backward( data, target, weight_decay = weight_decay, grad_clip = grad_clip )
                     self.optimizer.step()
                     train_loss += loss_val
 
