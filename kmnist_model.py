@@ -51,7 +51,7 @@ class KMNISTModel(Module):
         loss.backward()
         
         # Clip gradients
-        if grad_clip > 0:
-            torch.nn.utils.clip_grad_norm_( self.parameters(), grad_clip )
+        # if grad_clip > 0:
+        #    torch.nn.utils.clip_grad_norm_( self.parameters(), grad_clip )
         
         return loss.item()
