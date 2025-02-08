@@ -143,9 +143,13 @@ def main():
     parser.add_argument( '--experiment_name', type = str, default = 'default', help = 'Experiment name' )
     args = parser.parse_args()
 
-    run_experiment( args.optimizer, args.batch_size, args.experiment_name )
+    optimizer_names = args.optimizer.split(',')
+
+    for optimizer_name in optimizer_names:
+        run_experiment( optimizer_name, args.batch_size, args.experiment_name )
 
 if __name__ == '__main__':
     main()
 
-# optimizers = [ "adam", "adamw", "rmsprop", "sam", "lamb", "novograd", "adopt" ]
+# optimizers = [ adam,adamw,rmsprop,sam,lamb,novograd,adopt ]
+# python3 experiments.py --optimizer adam,adamw,rmsprop,sam,lamb,novograd,adopt --batch_size 128 --experiment_name exp1

@@ -17,13 +17,11 @@ class AdamConfig(OptimizerConfig):
                 "beta1_range": [0.7, 0.99],
                 "beta2_range": [0.8, 0.9999],
                 "weight_decay_range": [4e-4, 4e-2],
-                "grad_clip_range": [3e-2, 3.0]
             }
         )
         self.beta1 = 0.9
         self.beta2 = 0.999
         self.eps = 1e-8
-        self.grad_clip = 1.0
 
     def __str__(self):
         return f" lr:{self.learning_rate}, beta1:{self.beta1}, beta2:{self.beta2}, eps:{self.eps}, weight_decay:{self.weight_decay}"
@@ -39,13 +37,11 @@ class AdamWConfig(OptimizerConfig):
                 "beta1_range": [0.7, 0.99],
                 "beta2_range": [0.8, 0.9999],
                 "weight_decay_range": [4e-4, 4e-2],
-                "grad_clip_range": [3e-2, 3.0]
             }
         )
         self.beta1 = 0.9
         self.beta2 = 0.999
         self.eps = 1e-8
-        self.grad_clip = 1.0
 
     def __str__(self):
         return f" lr:{self.learning_rate}, beta1:{self.beta1}, beta2:{self.beta2}, eps:{self.eps}, weight_decay:{self.weight_decay}"
@@ -62,13 +58,12 @@ class RMSPropConfig(OptimizerConfig):
                 "alpha_range": [0.8, 0.999],
                 "momentum_range": [0.0, 0.9],
                 "weight_decay_range": [4e-4, 4e-2],
-                "grad_clip_range": [3e-2, 3.0]
             }
         )
         self.alpha = 0.99
         self.eps = 1e-8
         self.momentum = 0.0
-        self.grad_clip = 1.0
+
 
     def __str__(self):
         return f" lr:{self.learning_rate}, alpha:{self.alpha}, eps:{self.eps}, momentum:{self.momentum}, weight_decay:{self.weight_decay}"
@@ -85,12 +80,10 @@ class SAMConfig(OptimizerConfig):
                 "momentum_range": [0.0, 0.99],
                 "rho_range": [0.01, 0.3],
                 "weight_decay_range": [4e-4, 4e-2],
-                "grad_clip_range": [3e-2, 3.0]
             }
         )
         self.momentum = 0.9
         self.rho = 0.05
-        self.grad_clip = 1.0
 
     def __str__(self):
         return f" lr:{self.learning_rate}, momentum:{self.momentum}, rho:{self.rho}, weight_decay:{self.weight_decay}"
@@ -107,13 +100,12 @@ class LAMBConfig(OptimizerConfig):
                 "beta1_range": [0.7, 0.99],
                 "beta2_range": [0.8, 0.9999],
                 "weight_decay_range": [4e-4, 4e-2],
-                "grad_clip_range": [3e-2, 3.0]
             }
         )
         self.beta1 = 0.9
         self.beta2 = 0.999
         self.eps = 1e-8
-        self.grad_clip = 1.0
+
 
     def __str__(self):
         return f" lr:{self.learning_rate}, beta1:{self.beta1}, beta2:{self.beta2}, eps:{self.eps}, weight_decay:{self.weight_decay}"
@@ -130,13 +122,12 @@ class NovoGradConfig(OptimizerConfig):
                 "beta1_range": [0.7, 0.99],
                 "beta2_range": [0.8, 0.9999],
                 "weight_decay_range": [4e-4, 4e-2],
-                "grad_clip_range": [3e-2, 3.0]
             }
         )
         self.beta1 = 0.95
         self.beta2 = 0.98
         self.eps = 1e-8
-        self.grad_clip = 1.0
+
 
     def __str__(self):
         return f" lr:{self.learning_rate}, beta1:{self.beta1}, beta2:{self.beta2}, eps:{self.eps}, weight_decay:{self.weight_decay}"
@@ -153,13 +144,12 @@ class AdoptConfig(OptimizerConfig):
                 "beta1_range": [0.7, 0.99],
                 "beta2_range": [0.8, 0.9999],
                 "weight_decay_range": [4e-4, 4e-2],
-                "grad_clip_range": [3e-2, 3.0]
             }
         )
         self.beta1 = 0.9
         self.beta2 = 0.999
         self.eps = 1e-8
-        self.grad_clip = 1.0
+
 
     def __str__(self):
         return f" lr:{self.learning_rate}, beta1:{self.beta1}, beta2:{self.beta2}, eps:{self.eps}, weight_decay:{self.weight_decay}"
