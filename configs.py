@@ -1,4 +1,4 @@
-import dataclasses
+
 class OptimizerConfig:
     """Base class for optimizer configurations."""
     def __init__(self, learning_rate, weight_decay, ranges):

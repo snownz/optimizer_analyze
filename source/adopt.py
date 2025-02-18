@@ -2,6 +2,15 @@
 # mypy: allow-untyped-defs
 from typing import cast, Callable, List, Optional, Tuple, Union
 
+"""
+@inproceedings{taniguchi2024adopt,
+ author={Taniguchi, Shohei and Harada, Keno and Minegishi, Gouki and Oshima, Yuta and Jeong, Seong Cheol and Nagahara, Go and Iiyama, Tomoshi and Suzuki, Masahiro and Iwasawa, Yusuke and Matsuo, Yutaka},
+ booktitle = {Advances in Neural Information Processing Systems},
+ title = {ADOPT: Modified Adam Can Converge with Any β2 with the Optimal Rate},
+ year = {2024}
+}
+"""
+
 import torch
 from torch import Tensor
 

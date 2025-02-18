@@ -54,23 +54,17 @@ class SAM(optim.Optimizer):
         return norm
 
 class NovoGrad(optim.Optimizer):
-    """Implements NovoGrad algorithm.
-    Arguments:
-        params (iterable): iterable of parameters to optimize or dicts defining
-            parameter groups
-        lr (float, optional): learning rate (default: 1e-2)
-        betas (Tuple[float, float], optional): coefficients used for computing
-            running averages of gradient and its square (default: (0.95, 0.98))
-        eps (float, optional): term added to the denominator to improve
-            numerical stability (default: 1e-8)
-        weight_decay (float, optional): weight decay (L2 penalty) (default: 0)
-    Example:
-        >>> model = ResNet()
-        >>> optimizer = NovoGrad(model.parameters(), lr=1e-2, weight_decay=1e-5)
-    """
 
     def __init__(self, params, lr=0.01, betas=(0.95, 0.98), eps=1e-8,
                  weight_decay=0,grad_averaging=False):
+        """
+        Implementation of the NovoGrad optimizer based on the original paper:
+        "Stochastic Gradient Methods with Layer-wise Adaptive Moments for Training of Deep Networks"
+        (https://arxiv.org/abs/1905.11286)
+        
+        NovoGrad is an adaptive optimizer that normalizes gradients using second moment estimation
+        and applies a layer-wise update.
+        """
         if lr < 0.0:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= betas[0] < 1.0:
@@ -81,48 +75,62 @@ class NovoGrad(optim.Optimizer):
         super().__init__(params, defaults)
 
     def step(self, closure=None):
-        loss = None
+
+        """ Performs a single optimization step. """
+        computed_loss = None
         if closure is not None:
-            loss = closure()
-        for group in self.param_groups:
-            for p in group['params']:
-                if p.grad is None:
+            computed_loss = closure()
+        
+        for param_group in self.param_groups:
+            for param in param_group['params']:
+                if param.grad is None:
                     continue
-                grad = p.grad.data
-                if grad.is_sparse:
-                    raise RuntimeError('NovoGrad does not support sparse gradients')
-                state = self.state[p]
-                g_2 = torch.sum(grad ** 2)
-                if len(state) == 0:
-                    state['step'] = 0
-                    state['moments'] = grad.div(g_2.sqrt() +group['eps']) + \
-                                       group['weight_decay'] * p.data
-                    state['grads_ema'] = g_2
-                moments = state['moments']
-                grads_ema = state['grads_ema']
-                beta1, beta2 = group['betas']
-                state['step'] += 1
-                grads_ema.mul_(beta2).add_(1 - beta2, g_2)
+                
+                grad_tensor = param.grad.data
+                if grad_tensor.is_sparse:
+                    raise RuntimeError('ModifiedNovoGrad does not support sparse gradients')
+                
+                state = self.state[param]
+                grad_squared_sum = torch.sum( grad_tensor ** 2 )
+                
+                # Initialize state variables if not already present
+                if not state:
+                    state['iteration'] = 0
+                    state['momentum_buffer'] = grad_tensor.div( grad_squared_sum.sqrt() + param_group['eps'] ) + \
+                                               param_group['weight_decay'] * param.data
+                    state['grad_exp_avg'] = grad_squared_sum
+                
+                momentum_buf = state['momentum_buffer']
+                grad_exp_avg = state['grad_exp_avg']
+                beta1, beta2 = param_group['betas']
+                
+                state['iteration'] += 1
+                grad_exp_avg.mul_( beta2 ).add_( ( 1 - beta2 ) * grad_squared_sum )
+                
+                # Compute normalized gradient
+                norm_factor = grad_exp_avg.sqrt().add_( param_group['eps'] )
+                grad_tensor.div_(norm_factor)
+                
+                # Apply weight decay if specified
+                if param_group['weight_decay'] != 0:
+                    grad_tensor.add_( param_group['weight_decay'] * param.data )
+                
+                # Apply gradient averaging if enabled
+                if param_group['grad_averaging']:
+                    grad_tensor.mul_( 1.0 - beta1 )
+                
+                # Update momentum
+                momentum_buf.mul_( beta1 ).add_( grad_tensor )
+                
+                # Bias correction
+                bias_correction1 = 1 - beta1 ** state['iteration']
+                bias_correction2 = 1 - beta2 ** state['iteration']
+                adjusted_lr = param_group['lr'] * math.sqrt( bias_correction2 ) / bias_correction1
+                
+                # Update parameters
+                param.data.add_( -adjusted_lr * momentum_buf )
 
-                denom = grads_ema.sqrt().add_(group['eps'])
-                grad.div_(denom)
-                # weight decay
-                if group['weight_decay'] != 0:
-                    decayed_weights = torch.mul(p.data, group['weight_decay'])
-                    grad.add_(decayed_weights)
-
-                # Momentum --> SAG
-                if group['grad_averaging']:
-                    grad.mul_(1.0 - beta1)
-
-                moments.mul_(beta1).add_(grad) # velocity
-
-                bias_correction1 = 1 - beta1 ** state['step']
-                bias_correction2 = 1 - beta2 ** state['step']
-                step_size = group['lr'] * math.sqrt(bias_correction2) / bias_correction1
-                p.data.add_(-step_size, moments)
-
-        return loss
+        return computed_loss
 
 class Lamb(optim.Optimizer):
     
@@ -137,26 +145,8 @@ class Lamb(optim.Optimizer):
         adam: bool = False,
         debias: bool = False,
     ) -> None:
-        if lr <= 0.0:
-            raise ValueError('Invalid learning rate: {}'.format(lr))
-        if eps < 0.0:
-            raise ValueError('Invalid epsilon value: {}'.format(eps))
-        if not 0.0 <= betas[0] < 1.0:
-            raise ValueError(
-                'Invalid beta parameter at index 0: {}'.format(betas[0])
-            )
-        if not 0.0 <= betas[1] < 1.0:
-            raise ValueError(
-                'Invalid beta parameter at index 1: {}'.format(betas[1])
-            )
-        if weight_decay < 0:
-            raise ValueError(
-                'Invalid weight_decay value: {}'.format(weight_decay)
-            )
-        if clamp_value < 0.0:
-            raise ValueError('Invalid clamp value: {}'.format(clamp_value))
-
-        defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
+    
+        defaults = dict( lr = lr, betas = betas, eps = eps, weight_decay = weight_decay )
         self.clamp_value = clamp_value
         self.adam = adam
         self.debias = debias
@@ -164,11 +154,7 @@ class Lamb(optim.Optimizer):
         super(Lamb, self).__init__(params, defaults)
 
     def step(self, closure=None):
-        r"""Performs a single optimization step.
-
-        Arguments:
-            closure: A closure that reevaluates the model and returns the loss.
-        """
+        
         loss = None
         if closure is not None:
             loss = closure()
@@ -202,13 +188,13 @@ class Lamb(optim.Optimizer):
 
                 # Decay the first and second moment running average coefficient
                 # m_t
-                exp_avg.mul_(beta1).add_(grad, alpha=1 - beta1)
+                exp_avg.mul_( beta1 ).add_( grad, alpha = 1 - beta1 )
                 # v_t
-                exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
+                exp_avg_sq.mul_( beta2 ).addcmul_( grad, grad, value = 1 - beta2 )
 
                 # Paper v3 does not use debiasing.
                 if self.debias:
-                    bias_correction = math.sqrt(1 - beta2 ** state['step'])
+                    bias_correction = math.sqrt( 1 - beta2 ** state['step'] )
                     bias_correction /= 1 - beta1 ** state['step']
                 else:
                     bias_correction = 1
@@ -216,13 +202,13 @@ class Lamb(optim.Optimizer):
                 # Apply bias to lr to avoid broadcast.
                 step_size = group['lr'] * bias_correction
 
-                weight_norm = torch.norm(p.data).clamp(0, self.clamp_value)
+                weight_norm = torch.norm( p.data ).clamp( 0, self.clamp_value )
 
-                adam_step = exp_avg / exp_avg_sq.sqrt().add(group['eps'])
+                adam_step = exp_avg / exp_avg_sq.sqrt().add( group['eps'] )
                 if group['weight_decay'] != 0:
-                    adam_step.add_(p.data, alpha=group['weight_decay'])
+                    adam_step.add_( p.data, alpha = group['weight_decay'] )
 
-                adam_norm = torch.norm(adam_step)
+                adam_norm = torch.norm( adam_step )
                 if weight_norm == 0 or adam_norm == 0:
                     trust_ratio = 1
                 else:
@@ -233,4 +219,4 @@ class Lamb(optim.Optimizer):
                 if self.adam:
                     trust_ratio = 1
 
-                p.data.add_(adam_step, alpha=-step_size * trust_ratio)
+                p.data.add_( adam_step, alpha = -step_size * trust_ratio )

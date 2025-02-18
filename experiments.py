@@ -1,5 +1,5 @@
 from torchvision import datasets, transforms
-from trainer import KMNISTTrainer
+from source.trainer import KMNISTTrainer
 from configs import Config
 import numpy as np
 import torch
@@ -8,38 +8,39 @@ import pandas as pd
 import os
 import argparse
 
+# set torch seed
+torch.manual_seed( 42 )
+
+# Download and transform the KMNIST dataset
+print( 'Downloading and transforming the KMNIST dataset' )
+transform = transforms.Compose([
+    transforms.ToTensor()
+])
+
+# Download or load the KMNIST dataset
+train_data = datasets.KMNIST(
+    root = './data',
+    train = True,
+    download = True,
+    transform = transform
+)
+
+test_data = datasets.KMNIST(
+    root = './data',
+    train = False,
+    download = True,
+    transform = transform
+)
+
+# Split the test_data data into test_data and validation sets
+test_data, val_data = torch.utils.data.random_split( test_data, [ 5000, 5000 ] )
+
 def run_experiment( optimizer_name, batch_size, experiment_name ):
 
     # Check if the experiment name already exists
     if not os.path.exists( f'./results/{experiment_name}' ):
         # Create the results directory if it doesn't exist
         os.makedirs( f'./results/{experiment_name}', exist_ok = True )
-
-    #--------------------------------
-    # Download and transform the KMNIST dataset
-    #--------------------------------
-    print( 'Downloading and transforming the KMNIST dataset' )
-    transform = transforms.Compose([
-        transforms.ToTensor()
-    ])
-
-    # Download or load the KMNIST dataset
-    train_data = datasets.KMNIST(
-        root = './data',
-        train = True,
-        download = True,
-        transform = transform
-    )
-
-    test_data = datasets.KMNIST(
-        root = './data',
-        train = False,
-        download = True,
-        transform = transform
-    )
-
-    # Split the test_data data into test_data and validation sets
-    test_data, val_data = torch.utils.data.random_split( test_data, [ 5000, 5000 ] )
 
     # Create config
     print( f'Creating config for {optimizer_name} with batch size {batch_size}' )
@@ -49,9 +50,7 @@ def run_experiment( optimizer_name, batch_size, experiment_name ):
     print( f'Creating trainer for {optimizer_name} with batch size {batch_size}' )
     trainer = KMNISTTrainer( cfg )
 
-    #--------------------------------
     # Hyperparameter tuning
-    #--------------------------------
     print( '\n\n\n\n--------------------------------' )
     print( f'Hyperparameter tuning for {optimizer_name} with batch size {batch_size}' )
     print( '--------------------------------' )
@@ -60,9 +59,7 @@ def run_experiment( optimizer_name, batch_size, experiment_name ):
     df_study = study.trials_dataframe()
     df_study.to_csv( f'./results/{experiment_name}/{cfg.optimizer}_study.csv', index = False )
 
-    #--------------------------------
     # Cross-validation
-    #--------------------------------
     print( '\n\n\n\n--------------------------------' )
     print( f'Cross-validation for {optimizer_name} with batch size {batch_size}' )
     print( '--------------------------------' )
@@ -71,26 +68,20 @@ def run_experiment( optimizer_name, batch_size, experiment_name ):
     mean_val_acc = np.mean( cv_results['val_accuracy'] )
     print( f"Mean CV Loss: {mean_val_loss:.4f}, Mean CV Accuracy: {mean_val_acc:.2f}" )
 
-    #--------------------------------
     # Train the model with the best hyperparameters
-    #--------------------------------
     print( '\n\n\n\n--------------------------------' )
     print( f'Training the model with the best hyperparameters for {optimizer_name} with batch size {batch_size}' )
     print( '--------------------------------' )
-    history = trainer.train( train_data, val_data, epochs = cfg.epochs )
+    history = trainer.train( train_data, val_data, epochs = cfg.epochs, eval_first = True )
 
-    #--------------------------------
     # Testing the model
-    #--------------------------------
     print( '\n\n\n\n--------------------------------' )
     print( f'Testing the model for {optimizer_name} with batch size {batch_size}' )
     print( '--------------------------------' )
     test_results = trainer.test( test_data )
     print( f"Test Loss: {test_results['test_loss']:.4f}, Test Accuracy: {test_results['accuracy']:.2f}, Test Precision: {test_results['precision']:.4f}" )
 
-    #--------------------------------
     # Save epoch_logs to a status.csv file
-    #--------------------------------
     print( '\n\n\n\n--------------------------------' )
     print( f'Saving epoch_logs to a status.csv file for {optimizer_name} with batch size {batch_size}' )
     print( '--------------------------------' )
@@ -153,3 +144,8 @@ if __name__ == '__main__':
 
 # optimizers = [ adam,adamw,rmsprop,sam,lamb,novograd,adopt ]
 # python3 experiments.py --optimizer adam,adamw,rmsprop,sam,lamb,novograd,adopt --batch_size 128 --experiment_name exp1
+"""
+conda activate torch_gpu
+cd /mnt/c/Users/sshuser/Projects/optimizer_analyze/
+python3 experiments.py --optimizer adam,adamw,rmsprop,sam,lamb,novograd,adopt --batch_size 16384 --experiment_name exp4
+"""

@@ -7,9 +7,9 @@ import optuna
 import time
 from tqdm import tqdm
 
-from kmnist_model import KMNISTModel
-from optmizers import SAM, NovoGrad, Lamb
-from adopt import ADOPT
+from source.kmnist_model import KMNISTModel
+from source.optmizers import SAM, NovoGrad, Lamb
+from source.adopt import ADOPT
 
 class KMNISTTrainer:
 
@@ -151,7 +151,7 @@ class KMNISTTrainer:
         )
         
         # Train for a few epochs (HPO)
-        results = self.train( train_loader, val_loader, epochs = self.cfg.hpo_epochs )
+        results = self.train( train_loader, val_loader, epochs = self.cfg.hpo_epochs, eval_first = False )
         
         return results['val_precisions'][-1]  # Return the final precision
 
@@ -259,7 +259,7 @@ class KMNISTTrainer:
             )
 
             # Train for a few epochs
-            fold_results = self.train( train_loader, val_loader, epochs = self.cfg.cv_epochs )
+            fold_results = self.train( train_loader, val_loader, epochs = self.cfg.cv_epochs, eval_first = False )
             
             scores['train_loss'].append(fold_results['train_losses'][-1])
             scores['val_loss'].append(fold_results['val_losses'][-1])
@@ -268,7 +268,7 @@ class KMNISTTrainer:
 
         return scores
 
-    def train(self, train_data, val_data, epochs):
+    def train(self, train_data, val_data, epochs, eval_first=True):
         
         train_losses = []
         val_losses = []
@@ -297,11 +297,48 @@ class KMNISTTrainer:
                 shuffle = False
             )
 
-        # Check if is SAM
-        opt_type = self.cfg.optimizer.lower()
+        def eval():
 
+            nonlocal val_losses, val_accuracies, val_precisions
+
+            self.model.eval()
+            val_loss = 0.0
+            correct = 0
+            total = 0
+            all_preds = []
+            all_targets = []
+
+            with torch.no_grad():
+
+                for data, target in val_loader:
+
+                    data, target = data.to( self.device ), target.to( self.device )
+                    output = self.model( data )
+                    val_loss += self.model.criterion( output, target ).item()
+                    
+                    _, predicted = output.max(1)
+                    total += target.size(0)
+                    correct += predicted.eq( target ).sum().item()
+                    
+                    # For precision, collect all preds and targets
+                    all_preds.extend( predicted.cpu().numpy() )
+                    all_targets.extend( target.cpu().numpy() )
+
+            val_loss /= len( val_loader )
+            val_losses.append( val_loss )
+            accuracy = 100.0 * correct / total
+            precision = precision_score( all_targets, all_preds, average = 'macro', zero_division = 0 )
+            val_accuracies.append( accuracy )
+            val_precisions.append( precision )
+
+            return val_loss, accuracy, precision
+
+        opt_type = self.cfg.optimizer.lower()
         epoch_bar = tqdm( range( epochs ), desc = 'Epochs', leave = False )
         for epoch in epoch_bar:
+
+            if eval_first:
+                val_loss, accuracy, precision = eval()
 
             # Training phase
             self.model.train()
@@ -334,41 +371,13 @@ class KMNISTTrainer:
 
             epoch_time = time.time() - start_time
             train_times.append( epoch_time )
-            
+        
             # Calculate average training loss
             train_loss /= len( train_loader )
             train_losses.append( train_loss )
-            
-            # Validation phase
-            self.model.eval()
-            val_loss = 0.0
-            correct = 0
-            total = 0
-            all_preds = []
-            all_targets = []
 
-            with torch.no_grad():
-
-                for data, target in val_loader:
-
-                    data, target = data.to( self.device ), target.to( self.device )
-                    output = self.model( data )
-                    val_loss += self.model.criterion( output, target ).item()
-                    
-                    _, predicted = output.max(1)
-                    total += target.size(0)
-                    correct += predicted.eq( target ).sum().item()
-                    
-                    # For precision, collect all preds and targets
-                    all_preds.extend( predicted.cpu().numpy() )
-                    all_targets.extend( target.cpu().numpy() )
-
-            val_loss /= len( val_loader )
-            val_losses.append( val_loss )
-            accuracy = 100.0 * correct / total
-            precision = precision_score( all_targets, all_preds, average = 'macro', zero_division = 0 )
-            val_accuracies.append( accuracy )
-            val_precisions.append( precision )
+            if not eval_first:
+                val_loss, accuracy, precision = eval()
 
             # Store logs for this epoch
             epoch_log = {

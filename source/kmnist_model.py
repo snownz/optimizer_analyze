@@ -4,7 +4,7 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
-from torch_tools import Module
+from source.torch_tools import Module
 
 class KMNISTModel(Module):
     
