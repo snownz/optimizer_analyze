@@ -117,13 +117,13 @@ Results are saved in the following directories:
 
 This project supports the following optimizers:
 
-1. **Adam**: Adaptive Moment Estimation
-2. **AdamW**: Adam with decoupled weight decay
-3. **RMSProp**: Root Mean Square Propagation
-4. **SAM**: Sharpness-Aware Minimization
-5. **LAMB**: Layer-wise Adaptive Moments
-6. **NovoGrad**: Combines gradient normalization with Adam-like momentum
-7. **Adopt**: Custom optimizer implementation
+1. **Adam**: Adaptive Moment Estimation ([Adam Paper](https://arxiv.org/abs/1412.6980))
+2. **AdamW**: Adam with decoupled weight decay ([AdamW Paper](https://arxiv.org/abs/1711.05101))
+3. **RMSProp**: Root Mean Square Propagation ([RMSProp Reference](https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf))
+4. **SAM**: Sharpness-Aware Minimization ([SAM Paper](https://arxiv.org/abs/2010.01412))
+5. **LAMB**: Layer-wise Adaptive Moments ([LAMB Paper](https://arxiv.org/abs/1904.00962))
+6. **NovoGrad**: Combines gradient normalization with Adam-like momentum ([NovoGrad Paper](https://arxiv.org/abs/1905.11286))
+7. **Adopt**: Custom optimizer implementation ([Adopt Paper](https://arxiv.org/abs/2411.02853))
 
 Each optimizer is configurable with its own set of hyperparameters and ranges for learning rate, beta values, and weight decay.
 
