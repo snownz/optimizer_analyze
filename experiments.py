@@ -32,9 +32,6 @@ test_data = datasets.KMNIST(
     transform = transform
 )
 
-# Split the test_data data into test_data and validation sets
-test_data, val_data = torch.utils.data.random_split( test_data, [ 5000, 5000 ] )
-
 def run_experiment( optimizer_name, batch_size, experiment_name ):
 
     # Check if the experiment name already exists
@@ -58,16 +55,7 @@ def run_experiment( optimizer_name, batch_size, experiment_name ):
     print( "Best hyperparameters:", study.best_params )
     df_study = study.trials_dataframe()
     df_study.to_csv( f'./results/{experiment_name}/{cfg.optimizer}_study.csv', index = False )
-
-    # Cross-validation
-    print( '\n\n\n\n--------------------------------' )
-    print( f'Cross-validation for {optimizer_name} with batch size {batch_size}' )
-    print( '--------------------------------' )
-    cv_results = trainer.cross_validate( train_data, n_splits = cfg.cv_splits )
-    mean_val_loss = np.mean( cv_results['val_loss'] )
-    mean_val_acc = np.mean( cv_results['val_accuracy'] )
-    print( f"Mean CV Loss: {mean_val_loss:.4f}, Mean CV Accuracy: {mean_val_acc:.2f}" )
-
+    
     # Train the model with the best hyperparameters
     print( '\n\n\n\n--------------------------------' )
     print( f'Training the model with the best hyperparameters for {optimizer_name} with batch size {batch_size}' )
@@ -90,11 +78,9 @@ def run_experiment( optimizer_name, batch_size, experiment_name ):
     if os.path.exists( f'./results/{experiment_name}/status.csv' ):
         df_status = pd.read_csv( f'./results/{experiment_name}/status.csv' )
         df_metrics = pd.read_csv( f'./results/{experiment_name}/metrics.csv' )
-        df_cv_results = pd.read_csv( f'./results/{experiment_name}/cv_results.csv' )
     else:
         df_status = pd.DataFrame( columns = [ 'optimizer', 'epoch', 'train_loss', 'val_loss', 'val_accuracy', 'val_precision', 'epoch_time', 'batch_size' ] )
         df_metrics = pd.DataFrame( columns = [ 'optimizer', 'test_loss', 'accuracy', 'precision', 'batch_size' ] )
-        df_cv_results = pd.DataFrame( columns = [ 'optimizer', 'train_loss', 'val_loss', 'val_accuracy', 'val_precisions', 'batch_size' ] )
 
     # Append new epoch logs
     new_epoch_log_df = pd.DataFrame.from_dict( history['epoch_logs'] )
@@ -102,13 +88,6 @@ def run_experiment( optimizer_name, batch_size, experiment_name ):
     new_epoch_log_df['batch_size'] = batch_size
 
     df_status = pd.concat( [ df_status, new_epoch_log_df ], ignore_index = True )
-
-    # Append new CV results
-    new_cv_results_df = pd.DataFrame.from_dict( cv_results )
-    new_cv_results_df['optimizer'] = optimizer_name
-    new_cv_results_df['batch_size'] = batch_size
-
-    df_cv_results = pd.concat( [ df_cv_results, new_cv_results_df ], ignore_index = True )
 
     # Append new test results (test_results is a single dictionary)
     test_results['optimizer'] = optimizer_name
@@ -120,7 +99,6 @@ def run_experiment( optimizer_name, batch_size, experiment_name ):
     # Save the updated CSV files
     df_status.to_csv( f'./results/{experiment_name}/status.csv', index = False )
     df_metrics.to_csv( f'./results/{experiment_name}/metrics.csv', index = False )
-    df_cv_results.to_csv( f'./results/{experiment_name}/cv_results.csv', index = False )
 
     print( '\n\n\n\n--------------------------------' )
     print( f'Experiment {experiment_name} completed successfully' )
