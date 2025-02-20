@@ -131,7 +131,7 @@ class KMNISTTrainer:
         else:
             raise ValueError(f"Optimizer '{self.cfg.optimizer}' not supported or not implemented.")
 
-    def objective(self, trial, train_data, val_data):
+    def objective(self, trial, train_data):
 
         # Reset model
         self.model = KMNISTModel().to( self.device )
@@ -144,16 +144,11 @@ class KMNISTTrainer:
             batch_size = self.cfg.batch_size,
             shuffle = True
         )
-        val_loader = torch.utils.data.DataLoader(
-            val_data,
-            batch_size = self.cfg.batch_size,
-            shuffle = False
-        )
         
         # Train for a few epochs (HPO)
-        results = self.train( train_loader, val_loader, epochs = self.cfg.hpo_epochs, eval_first = False )
+        results = self.cross_validate( train_loader )
         
-        return results['val_precisions'][-1]  # Return the final precision
+        return np.mean( results['val_precisions'] )  # Return the final precision
 
     def hyperparameter_tuning( self, train_data, val_data ):
         
